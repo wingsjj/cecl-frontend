@@ -73,7 +73,7 @@
                           show-size
                           label="训练文件"
                           :rules="[v => v.size > 0 || '文件不能为空']"
-                          v-model="submitTask.file"
+                          @change="onFileChange"
                         ></v-file-input>
                         <v-switch
                           label="联合训练"
@@ -110,6 +110,12 @@
 
 <script>
 import Notification from "./components/notification/Notification";
+import { notify } from "./components/notification";
+import "./api/task";
+import "./utils/utils";
+import { addTask, getAllTasks, uploadTask } from "./api/task";
+import { timestamp_s } from "./utils/utils";
+import qs from "qs";
 
 export default {
   components: { Notification },
@@ -144,22 +150,76 @@ export default {
     submitTask: {
       name: "test",
       create_time: 123456,
+      edge_nodes: "",
       union_train: 0,
       file: ""
     },
     search: ""
   }),
   methods: {
+    onFileChange(file) {
+      console.log(file);
+      const form = new FormData();
+      form.append("train", file);
+      uploadTask(form).then(res => {
+        if (res.status === 200) {
+          notify("success", "上传成功");
+          this.submitTask.file = file.name;
+        } else {
+          notify("fail", res.status + "错误");
+        }
+      });
+    },
+    initTasks() {
+      getAllTasks()
+        .then(res => {
+          if (res.status === 200) {
+            this.tasks = JSON.parse(res.data.msg);
+            this.tasks.map(v => {
+              switch (v.status) {
+                case 0:
+                  v.status = "未开始";
+                  break;
+                case 1:
+                  v.status = "正在运行";
+                  break;
+                case 2:
+                  v.status = "已结束";
+                  break;
+                case 3:
+                  v.status = "已完成";
+                  break;
+              }
+              v.union_train ? (v.union_train = "是") : (v.union_train = "否");
+              v.create_time = timestamp_s(v.create_time);
+            });
+          }
+        })
+        .catch();
+    },
     submit() {
       if (!this.$refs.form.validate()) {
         return;
       }
-      console.log(this.submitTask);
+      this.submitTask.create_time = Math.ceil(new Date() / 1000);
+      addTask(qs.stringify(this.submitTask))
+        .then(res => {
+          if (res.status === 200) {
+            notify("success", "添加任务成功");
+          } else {
+            notify("fail", res.status + "错误");
+          }
+        })
+        .catch();
+      // this.initTasks();
+      this.dialog = false;
     },
     cancel() {
       this.dialog = false;
     }
   },
-  created() {}
+  created() {
+    this.initTasks();
+  }
 };
 </script>

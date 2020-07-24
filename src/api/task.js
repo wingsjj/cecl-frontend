@@ -10,7 +10,7 @@ export function getAllTasks() {
 
 export function addTask(data) {
   return axios({
-    url: `${URL}add`,
+    url: `${URL}task`,
     method: "POST",
     data: data
   });
@@ -23,7 +23,7 @@ export function stopTask(id) {
   });
 }
 
-export function upload(data) {
+export function uploadTask(data) {
   return axios({
     url: `${URL}upload`,
     method: "POST",
