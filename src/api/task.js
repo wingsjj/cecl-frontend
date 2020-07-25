@@ -30,3 +30,10 @@ export function uploadTask(data) {
     data: data
   });
 }
+
+export function getTaskLog(taskId) {
+  return axios({
+    url: `${URL}task/log/${taskId}`,
+    method: "GET"
+  });
+}

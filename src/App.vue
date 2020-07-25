@@ -91,15 +91,38 @@
             </template>
 
             <template v-slot:item.actions="{ item }">
-              <v-icon small class="mr-2" @click="editItem(item)">
+              <v-icon small class="mr-2" @click.stop="editItem(item)">
                 remove_red_eye
               </v-icon>
-              <v-icon small @click="delItem(item)">
+              <v-icon small @click.stop="delItem(item)">
                 mdi-delete
               </v-icon>
             </template>
           </v-data-table>
         </v-card>
+        <v-dialog v-model="logDialog" max-width="600px">
+          <v-card>
+            <v-card-title>日志记录</v-card-title>
+            <v-card-text>
+              <v-simple-table>
+                <template v-slot:default>
+                  <thead>
+                    <tr>
+                      <th class="text-left">Id</th>
+                      <th class="text-left">内容</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="log in logRecord" :key="log.id">
+                      <td>{{ log.id }}</td>
+                      <td>{{ log.content }}</td>
+                    </tr>
+                  </tbody>
+                </template>
+              </v-simple-table>
+            </v-card-text>
+          </v-card>
+        </v-dialog>
       </v-container>
     </v-main>
     <v-footer color="primary" app>
@@ -113,7 +136,7 @@ import Notification from "./components/notification/Notification";
 import { notify } from "./components/notification";
 import "./api/task";
 import "./utils/utils";
-import { addTask, getAllTasks, uploadTask } from "./api/task";
+import { addTask, getAllTasks, getTaskLog, uploadTask } from "./api/task";
 import { timestamp_s } from "./utils/utils";
 import qs from "qs";
 
@@ -123,6 +146,7 @@ export default {
     source: String
   },
   data: () => ({
+    logDialog: false,
     dialog: false,
     headers: [
       { text: "ID", align: "start", value: "id" },
@@ -154,9 +178,21 @@ export default {
       union_train: 0,
       file: ""
     },
-    search: ""
+    search: "",
+    logRecord: {}
   }),
   methods: {
+    editItem(item) {
+      getTaskLog(item.id).then(res => {
+        if (res.status === 200) {
+          this.logRecord = JSON.parse(res.data.msg);
+        }
+      });
+      this.logDialog = true;
+    },
+    delItem(item) {
+      console.log(item.id);
+    },
     onFileChange(file) {
       console.log(file);
       const form = new FormData();
@@ -211,7 +247,7 @@ export default {
           }
         })
         .catch();
-      // this.initTasks();
+      setTimeout(this.initTasks, 300);
       this.dialog = false;
     },
     cancel() {
