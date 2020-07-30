@@ -48,6 +48,9 @@
                 >
                 </v-text-field>
                 <v-spacer></v-spacer>
+                <v-btn color="primary" dark class="mr-5" @click="initTasks"
+                  >刷新</v-btn
+                >
                 <v-dialog v-model="dialog" max-width="600px">
                   <template v-slot:activator="{ on, attrs }">
                     <v-btn color="primary" dark v-bind="attrs" v-on="on"
@@ -91,7 +94,7 @@
             </template>
 
             <template v-slot:item.actions="{ item }">
-              <v-icon small class="mr-2" @click.stop="editItem(item)">
+              <v-icon small class="mr-2" @click.stop="getLogs(item)">
                 remove_red_eye
               </v-icon>
               <v-icon small @click.stop="delItem(item)">
@@ -100,7 +103,11 @@
             </template>
           </v-data-table>
         </v-card>
-        <v-dialog v-model="logDialog" max-width="600px">
+        <v-dialog
+          v-model="logDialog"
+          max-width="600px"
+          @click:outside="logClose"
+        >
           <v-card>
             <v-card-title>日志记录</v-card-title>
             <v-card-text>
@@ -108,7 +115,7 @@
                 <template v-slot:default>
                   <thead>
                     <tr>
-                      <th class="text-left">Id</th>
+                      <th class="text-left">Log Id</th>
                       <th class="text-left">内容</th>
                     </tr>
                   </thead>
@@ -179,16 +186,30 @@ export default {
       file: ""
     },
     search: "",
-    logRecord: {}
+    logRecord: {},
+    logTimer: ""
   }),
   methods: {
-    editItem(item) {
-      getTaskLog(item.id).then(res => {
+    logClose() {
+      console.log("closed");
+      clearInterval(this.logTimer);
+    },
+    getLogs(item) {
+      if (item.status === "正在运行" || item.status === "未开始") {
+        this.logTimer = setInterval(() => {
+          this.setLogs(item.id);
+        }, 1000);
+      } else {
+        this.setLogs(item.id);
+      }
+      this.logDialog = true;
+    },
+    setLogs(id) {
+      getTaskLog(id).then(res => {
         if (res.status === 200) {
           this.logRecord = JSON.parse(res.data.msg);
         }
       });
-      this.logDialog = true;
     },
     delItem(item) {
       console.log(item.id);
@@ -241,7 +262,7 @@ export default {
       addTask(qs.stringify(this.submitTask))
         .then(res => {
           if (res.status === 200) {
-            notify("success", "添加任务成功");
+            notify("success", "任务已完成");
           } else {
             notify("fail", res.status + "错误");
           }
