@@ -97,8 +97,11 @@
               <v-icon small class="mr-2" @click.stop="getLogs(item)">
                 remove_red_eye
               </v-icon>
-              <v-icon small @click.stop="delItem(item)">
+              <v-icon small class="mr-2" @click.stop="delItem(item)">
                 mdi-delete
+              </v-icon>
+              <v-icon small @click.stop="deploy(item)">
+                play_circle_outline
               </v-icon>
             </template>
           </v-data-table>
@@ -130,6 +133,42 @@
             </v-card-text>
           </v-card>
         </v-dialog>
+
+        <v-dialog v-model="deployDialog" max-width="600px">
+          <v-card>
+            <v-card-title>部署模型</v-card-title>
+            <v-card-text>
+              <v-form ref="deployForm">
+                <v-text-field
+                  v-model="deployTask.name"
+                  :rules="[
+                    v => !!v || '名称不能为空',
+                    v => v.length <= 255 || '名称必须小于255个字符'
+                  ]"
+                  :counter="255"
+                  label="名称"
+                ></v-text-field>
+                <v-text-field
+                  v-model="deployTask.model"
+                  :rules="[
+                    v => !!v || '文件名不能为空',
+                    v => v.length <= 255 || '文件名必须小于255个字符'
+                  ]"
+                  :counter="255"
+                  label="模型文件名"
+                ></v-text-field>
+                <v-file-input
+                  show-size
+                  label="部署文件"
+                  :rules="[v => v.size > 0 || '文件不能为空']"
+                  @change="onFileChange"
+                ></v-file-input>
+                <v-btn class="success mr-4" @click="deploySubmit">提交</v-btn>
+                <v-btn class="error" @click="deployCancel">取消</v-btn>
+              </v-form>
+            </v-card-text>
+          </v-card>
+        </v-dialog>
       </v-container>
     </v-main>
     <v-footer color="primary" app>
@@ -143,7 +182,13 @@ import Notification from "./components/notification/Notification";
 import { notify } from "./components/notification";
 import "./api/task";
 import "./utils/utils";
-import { addTask, getAllTasks, getTaskLog, uploadTask } from "./api/task";
+import {
+  addTask,
+  getAllTasks,
+  getTaskLog,
+  uploadTask,
+  deployModel
+} from "./api/task";
 import { timestamp_s } from "./utils/utils";
 import qs from "qs";
 
@@ -153,6 +198,7 @@ export default {
     source: String
   },
   data: () => ({
+    deployDialog: false,
     logDialog: false,
     dialog: false,
     headers: [
@@ -185,17 +231,31 @@ export default {
       union_train: 0,
       file: ""
     },
+    deployTask: {
+      id: 0,
+      name: "部署模型",
+      model: "CNN.h5",
+      create_time: 123456,
+      file: ""
+    },
     search: "",
     logRecord: {},
     logTimer: ""
   }),
   methods: {
+    deploy(item) {
+      if (item.status === "已完成") {
+        this.deployTask.id = item.id;
+        this.deployDialog = true;
+      }
+    },
     logClose() {
       console.log("closed");
       clearInterval(this.logTimer);
     },
     getLogs(item) {
       if (item.status === "正在运行" || item.status === "未开始") {
+        this.setLogs(item.id);
         this.logTimer = setInterval(() => {
           this.setLogs(item.id);
         }, 1000);
@@ -222,6 +282,7 @@ export default {
         if (res.status === 200) {
           notify("success", "上传成功");
           this.submitTask.file = file.name;
+          this.deployTask.file = file.name;
         } else {
           notify("fail", res.status + "错误");
         }
@@ -273,6 +334,24 @@ export default {
     },
     cancel() {
       this.dialog = false;
+    },
+    deploySubmit() {
+      if (!this.$refs.deployForm.validate()) {
+        return;
+      }
+      this.deployTask.create_time = Math.ceil(new Date() / 1000);
+      deployModel(this.deployTask.id, qs.stringify(this.deployTask))
+        .then(res => {
+          if (res.status === 200) {
+            notify("success", "部署成功");
+          } else {
+            notify("fail", res.status + "错误");
+          }
+        })
+        .catch();
+    },
+    deployCancel() {
+      this.deployDialog = false;
     }
   },
   created() {

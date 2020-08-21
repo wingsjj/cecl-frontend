@@ -37,3 +37,11 @@ export function getTaskLog(taskId) {
     method: "GET"
   });
 }
+
+export function deployModel(id, data) {
+  return axios({
+    url: `${URL}task/deploy/${id}`,
+    method: "POST",
+    data: data
+  });
+}
